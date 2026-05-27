@@ -1,0 +1,14 @@
+{
+  "model_path": "D:\\speration of working emails\\email_classifier\\models\\email_classifier_bundle.pkl",
+  "classes": [
+    "Newsletter",
+    "Personal",
+    "Spam",
+    "Work"
+  ],
+  "text_column": "text",
+  "label_column": "label",
+  "chunksize": 50,
+  "n_features": 1048576,
+  "rows_seen": 42
+}

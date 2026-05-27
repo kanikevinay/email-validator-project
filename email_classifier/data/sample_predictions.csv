@@ -1,0 +1,6 @@
+text,cleaned_email,prediction,confidence
+Please review the attached invoice for last month.,please review the attached invoice for last month,Work,0.9841618556843115
+Don't miss our weekly deals and offers!,don t miss our weekly deals and offers,Newsletter,0.9439178724155506
+Win big with our new promotion.,win big with our new promotion,Spam,0.952245597884826
+Lunch this weekend?,lunch this weekend,Personal,0.9222844829520405
+Urgent: Update your password to keep your account secure.,urgent update your password to keep your account secure,Spam,0.9153557672168415

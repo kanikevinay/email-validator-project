@@ -1,0 +1,51 @@
+id,name,email
+1,Test User 1,user2@thisdomaindoesnotexist12345.com
+2,Test User 2,sales@baddomain-test.org
+3,Test User 3,test@invalid-domain-test.io
+4,Test User 4,careers@linkedin.com
+5,Test User 5,support@apple.com
+6,Test User 6,user@domain.com (comment)
+7,Test User 7,employee@fakecompany9988.org
+8,Test User 8,marketing@spotify.com
+9,Test User 9,dev@invalid-domain-test.io
+10,Test User 10,boss@fakecompany9988.org
+11,Test User 11,spaces in@email.com
+12,Test User 12,ceo@startup-failed-123.com
+13,Test User 13,help@uber.com
+14,Test User 14,contact@microsoft.com
+15,Test User 15,user@domain..com
+16,Test User 16,justaword
+17,Test User 17,developer@github.com
+18,Test User 18,support@unreachable-host.com
+19,Test User 19,.leadingdot@yahoo.com
+20,Test User 20,john.doe@gmail.com
+21,Test User 21,name@domain.c
+22,Test User 22,hello@nomxrecordhere.co
+23,Test User 23,double@@gmail.com
+24,Test User 24,user@[192.168.1.1]
+25,Test User 25,name@domain-.com
+26,Test User 26,missingatsign.com
+27,Test User 27,billing@nomxrecordhere.co
+28,Test User 28,admin@nowhere-fast.biz
+29,Test User 29,info@void-space-99.net
+30,Test User 30,user space@gmail.com
+31,Test User 31,"user@domain.com, user2@domain.com"
+32,Test User 32,invalid!char@domain.com
+33,Test User 33,no_domain@.com
+34,Test User 34,@missingusername.com
+35,Test User 35,team@slack.com
+36,Test User 36,user@domain.com\
+37,Test User 37,"user@domain,com"
+38,Test User 38,admin@outlook.com
+39,Test User 39,hr@deadserver-xyz.net
+40,Test User 40,missing_tld@domain
+41,Test User 41,info@google.com
+42,Test User 42,trailingdot@gmail.com.
+43,Test User 43,sales@amazon.com
+44,Test User 44,test.user1@hotmail.com
+45,Test User 45,press@twitter.com
+46,Test User 46,user1@thisdomaindoesnotexist12345.com
+47,Test User 47,contact@deadserver-xyz.net
+48,Test User 48,jane.smith@yahoo.com
+49,Test User 49,hello@netflix.com
+50,Test User 50,name@-domain.com
