@@ -27,6 +27,8 @@ EMAIL_REGEX = re.compile(
     re.IGNORECASE,
 )
 
+MxLookupResult = bool | None
+
 
 @dataclass(slots=True)
 class ProcessingProgress:
@@ -48,10 +50,12 @@ class VerificationSummary:
     input_path: str
     output_working: str
     output_invalid: str
+    output_unknown: str
     email_column: str
     total_rows: int
     working_count: int
     invalid_count: int
+    unknown_count: int
     processed_chunks: int
 
 
@@ -63,12 +67,12 @@ class _AioDnsMxResolver:
             raise ImportError("aiodns is not installed. Install dependencies from requirements.txt.")
         self._resolver = aiodns.DNSResolver(timeout=2.5, tries=2)
 
-    async def query_mx(self, domain: str) -> bool:
+    async def query_mx(self, domain: str) -> MxLookupResult:
         try:
             response = await self._resolver.query(domain, "MX")
             return bool(response)
         except Exception:
-            return False
+            return None
 
 
 class _DnsPythonMxResolver:
@@ -81,12 +85,12 @@ class _DnsPythonMxResolver:
         self._resolver.timeout = 2.5
         self._resolver.lifetime = 3.0
 
-    async def query_mx(self, domain: str) -> bool:
+    async def query_mx(self, domain: str) -> MxLookupResult:
         try:
             response = await self._resolver.resolve(domain, "MX")
             return bool(response)
         except Exception:
-            return False
+            return None
 
 
 class _AsyncMxResolver:
@@ -96,7 +100,7 @@ class _AsyncMxResolver:
         else:
             self._backend = _DnsPythonMxResolver()
 
-    async def query_mx(self, domain: str) -> bool:
+    async def query_mx(self, domain: str) -> MxLookupResult:
         return await self._backend.query_mx(domain)
 
 
@@ -135,11 +139,11 @@ async def _resolve_domains(
     domains: set[str],
     resolver: _AsyncMxResolver,
     concurrency: int,
-) -> dict[str, bool]:
+) -> dict[str, MxLookupResult]:
     """Resolve many domains concurrently and return an MX cache."""
     semaphore = asyncio.Semaphore(max(1, concurrency))
 
-    async def _resolve_one(domain: str) -> tuple[str, bool]:
+    async def _resolve_one(domain: str) -> tuple[str, MxLookupResult]:
         async with semaphore:
             has_mx = await resolver.query_mx(domain)
             return domain, has_mx
@@ -194,13 +198,22 @@ async def validate_emails(
             )
             continue
 
-        has_mx = cache.get(domain, False)
+        has_mx = cache.get(domain)
+        if has_mx is None:
+            status = "unknown"
+            reason = "mx_unreachable"
+        elif has_mx:
+            status = "working"
+            reason = "mx_verified"
+        else:
+            status = "invalid"
+            reason = "mx_missing"
         results.append(
             {
                 "email": email,
                 "domain": domain,
-                "status": "working" if has_mx else "invalid",
-                "reason": "mx_verified" if has_mx else "mx_missing",
+                "status": status,
+                "reason": reason,
             }
         )
 
@@ -217,6 +230,7 @@ async def _process_csv_async(
     input_path: Path,
     output_working: Path,
     output_invalid: Path,
+    output_unknown: Path,
     email_column: str,
     chunksize: int,
     concurrency: int,
@@ -234,12 +248,15 @@ async def _process_csv_async(
 
     output_working.parent.mkdir(parents=True, exist_ok=True)
     output_invalid.parent.mkdir(parents=True, exist_ok=True)
+    output_unknown.parent.mkdir(parents=True, exist_ok=True)
     output_working.unlink(missing_ok=True)
     output_invalid.unlink(missing_ok=True)
+    output_unknown.unlink(missing_ok=True)
 
     processed_rows = 0
     working_count = 0
     invalid_count = 0
+    unknown_count = 0
     processed_chunks = 0
 
     iterator = pd.read_csv(
@@ -264,14 +281,17 @@ async def _process_csv_async(
 
         working_frame = result_frame[result_frame["status"] == "working"][["email", "domain", "reason"]]
         invalid_frame = result_frame[result_frame["status"] == "invalid"][["email", "domain", "reason"]]
+        unknown_frame = result_frame[result_frame["status"] == "unknown"][["email", "domain", "reason"]]
 
         _append_frame(working_frame, output_working)
         _append_frame(invalid_frame, output_invalid)
+        _append_frame(unknown_frame, output_unknown)
 
         chunk_total = len(result_frame)
         processed_rows += chunk_total
         working_count += len(working_frame)
         invalid_count += len(invalid_frame)
+        unknown_count += len(unknown_frame)
 
         if progress_callback is not None:
             progress_callback(
@@ -282,6 +302,7 @@ async def _process_csv_async(
                     total_rows=total_rows,
                     working_count=working_count,
                     invalid_count=invalid_count,
+                    unknown_count=unknown_count,
                     progress_ratio=min(1.0, processed_rows / max(1, total_rows)),
                 )
             )
@@ -290,10 +311,12 @@ async def _process_csv_async(
         input_path=str(input_path),
         output_working=str(output_working),
         output_invalid=str(output_invalid),
+        output_unknown=str(output_unknown),
         email_column=email_column,
         total_rows=processed_rows,
         working_count=working_count,
         invalid_count=invalid_count,
+        unknown_count=unknown_count,
         processed_chunks=processed_chunks,
     )
 
@@ -302,6 +325,7 @@ def process_csv(
     input_path: str | Path,
     output_working: str | Path,
     output_invalid: str | Path,
+    output_unknown: str | Path | None = None,
     email_column: str = "email",
     chunksize: int = 50_000,
     concurrency: int = 250,
@@ -311,6 +335,7 @@ def process_csv(
     input_file = Path(input_path)
     working_file = Path(output_working)
     invalid_file = Path(output_invalid)
+    unknown_file = Path(output_unknown) if output_unknown is not None else invalid_file.with_name("unverified_emails.csv")
 
     if not input_file.exists():
         raise FileNotFoundError(f"Input file not found: {input_file}")
@@ -320,6 +345,7 @@ def process_csv(
             input_file,
             working_file,
             invalid_file,
+            unknown_file,
             email_column,
             chunksize,
             concurrency,

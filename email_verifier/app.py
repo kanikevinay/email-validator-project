@@ -18,6 +18,7 @@ DATA_DIR = PROJECT_ROOT / "data"
 UPLOAD_DIR = DATA_DIR / "uploads"
 WORKING_OUTPUT = DATA_DIR / "working_emails.csv"
 INVALID_OUTPUT = DATA_DIR / "invalid_emails.csv"
+UNKNOWN_OUTPUT = DATA_DIR / "unverified_emails.csv"
 DEFAULT_COLUMN_NAME = "email"
 
 st.set_page_config(page_title=APP_TITLE, page_icon="@", layout="wide", initial_sidebar_state="expanded")
@@ -280,7 +281,7 @@ def _format_metric_card(label: str, value: str, subtitle: str) -> str:
 
 
 def _summary_cards(summary: VerificationSummary) -> None:
-    left, right = st.columns(2)
+    left, middle, right = st.columns(3)
     left.markdown(
         _format_metric_card(
             "Total Working Emails",
@@ -289,11 +290,19 @@ def _summary_cards(summary: VerificationSummary) -> None:
         ),
         unsafe_allow_html=True,
     )
-    right.markdown(
+    middle.markdown(
         _format_metric_card(
             "Total Invalid Emails",
             f"{summary.invalid_count:,}",
             "Malformed or missing MX records",
+        ),
+        unsafe_allow_html=True,
+    )
+    right.markdown(
+        _format_metric_card(
+            "Total Unverified Emails",
+            f"{summary.unknown_count:,}",
+            "Syntax valid, MX lookup unavailable",
         ),
         unsafe_allow_html=True,
     )
@@ -358,6 +367,7 @@ def main() -> None:
     result_summary: VerificationSummary | None = st.session_state.get("verification_summary")
     working_preview_path: Path | None = st.session_state.get("working_output_path")
     invalid_preview_path: Path | None = st.session_state.get("invalid_output_path")
+    unknown_preview_path: Path | None = st.session_state.get("unknown_output_path")
 
     if start_clicked:
         if uploaded is None:
@@ -384,13 +394,14 @@ def main() -> None:
                 status_area.info(
                     f"Chunk {progress.chunk_index}/{progress.chunks_total} | "
                     f"Processed {progress.rows_processed:,}/{progress.total_rows:,} | "
-                    f"Working {progress.working_count:,} | Invalid {progress.invalid_count:,}"
+                    f"Working {progress.working_count:,} | Invalid {progress.invalid_count:,} | Unverified {progress.unknown_count:,}"
                 )
 
             summary = process_csv(
                 input_path=input_path,
                 output_working=WORKING_OUTPUT,
                 output_invalid=INVALID_OUTPUT,
+                output_unknown=UNKNOWN_OUTPUT,
                 email_column=email_column.strip() or DEFAULT_COLUMN_NAME,
                 progress_callback=_update_progress,
             )
@@ -398,9 +409,11 @@ def main() -> None:
             st.session_state["verification_summary"] = summary
             st.session_state["working_output_path"] = Path(summary.output_working)
             st.session_state["invalid_output_path"] = Path(summary.output_invalid)
+            st.session_state["unknown_output_path"] = Path(summary.output_unknown)
             result_summary = summary
             working_preview_path = Path(summary.output_working)
             invalid_preview_path = Path(summary.output_invalid)
+            unknown_preview_path = Path(summary.output_unknown)
 
             progress_bar.progress(1.0)
             status_area.success(
@@ -459,6 +472,24 @@ def main() -> None:
                 width="stretch",
             )
 
+        if unknown_preview_path and unknown_preview_path.exists():
+            unknown_frame = pd.read_csv(unknown_preview_path)
+            unknown_csv, unknown_xlsx = st.columns(2)
+            unknown_csv.download_button(
+                "Download unverified_emails.csv",
+                data=unknown_preview_path.read_bytes(),
+                file_name="unverified_emails.csv",
+                mime="text/csv",
+                width="stretch",
+            )
+            unknown_xlsx.download_button(
+                "Download unverified_emails.xlsx",
+                data=_frame_to_excel_bytes(unknown_frame, "unverified_emails"),
+                file_name="unverified_emails.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                width="stretch",
+            )
+
         st.write("")
         preview_left, preview_right = st.columns(2)
         with preview_left:
@@ -470,8 +501,13 @@ def main() -> None:
             if invalid_preview_path and invalid_preview_path.exists():
                 st.dataframe(_load_csv_preview(invalid_preview_path), width="stretch")
 
+        st.write("")
+        st.markdown("<div class='panel'><strong>Unverified preview</strong></div>", unsafe_allow_html=True)
+        if unknown_preview_path and unknown_preview_path.exists():
+            st.dataframe(_load_csv_preview(unknown_preview_path), width="stretch")
+
     elif uploaded is not None:
-        st.info("Upload a CSV and click Start Verification to generate the working and invalid files.")
+        st.info("Upload a CSV and click Start Verification to generate the working, invalid, and unverified files.")
 
 
 if __name__ == "__main__":

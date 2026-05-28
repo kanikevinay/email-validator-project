@@ -78,7 +78,10 @@ Generated outputs are written to:
 
 - `email_verifier/data/working_emails.csv`
 - `email_verifier/data/invalid_emails.csv`
+- `email_verifier/data/unverified_emails.csv`
 - temporary uploaded files under `email_verifier/data/uploads/`
+
+If DNS lookup is unavailable, syntax-valid addresses are written to the unverified file instead of being mislabeled as invalid.
 
 ## Train the Email Classifier
 
