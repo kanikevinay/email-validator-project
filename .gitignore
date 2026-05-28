@@ -1,0 +1,21 @@
+# Python cache and bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+
+# Streamlit and local runtime artifacts
+.streamlit/secrets.toml
+
+# Verifier generated runtime outputs
+email_verifier/data/unverified_emails.csv
+email_verifier/data/uploads/upload_*.csv
+email_verifier/data/uploads/tmp*.csv
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/*.code-workspace
