@@ -55,6 +55,10 @@ class EmailClassifierPredictor:
         confidence = float(max(probabilities_array))
         return PredictionResult(label=str(label), confidence=confidence, probabilities=probabilities)
 
+    def predict_one(self, text: str) -> PredictionResult:
+        """Backward-compatible alias for single-text prediction."""
+        return self.predict_text(text)
+
     def predict_batch(self, texts: list[str]) -> pd.DataFrame:
         if not texts:
             return pd.DataFrame(columns=["prediction", "confidence"])

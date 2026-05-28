@@ -333,7 +333,7 @@ def main() -> None:
         unsafe_allow_html=True,
     )
     top_right.markdown(
-        _format_metric_card("Output Files", "2 CSVs", "Working and invalid"),
+        _format_metric_card("Output Files", "3 files", "Working, invalid, and unverified"),
         unsafe_allow_html=True,
     )
 
@@ -375,7 +375,7 @@ def main() -> None:
                 """
                 <div class="result-box result-bad">
                     <h3 style="margin-top:0">Missing file</h3>
-                    <p class="small-note">Please upload a CSV file before starting verification.</p>
+                    <p class="small-note">Please upload a CSV or Excel file before starting verification.</p>
                 </div>
                 """,
                 unsafe_allow_html=True,

@@ -40,6 +40,7 @@ class ProcessingProgress:
     total_rows: int
     working_count: int
     invalid_count: int
+    unknown_count: int
     progress_ratio: float
 
 
@@ -135,6 +136,38 @@ def count_csv_rows(csv_path: str | Path) -> int:
     return max(0, total_lines - 1)
 
 
+def _normalize_column_name(name: object) -> str:
+    return str(name).strip().lower().replace(" ", "_")
+
+
+def _resolve_email_column(columns: list[object], requested: str) -> str:
+    requested_normalized = _normalize_column_name(requested)
+    if not requested_normalized:
+        requested_normalized = "email"
+
+    normalized_to_actual: dict[str, str] = {}
+    for column in columns:
+        column_name = str(column)
+        normalized_to_actual[_normalize_column_name(column_name)] = column_name
+
+    if requested_normalized in normalized_to_actual:
+        return normalized_to_actual[requested_normalized]
+
+    common_candidates = (
+        "email",
+        "email_address",
+        "emailid",
+        "mail",
+        "contact_email",
+    )
+    for candidate in common_candidates:
+        if candidate in normalized_to_actual:
+            return normalized_to_actual[candidate]
+
+    available = ", ".join(map(str, columns))
+    raise ValueError(f"Column '{requested}' was not found. Available columns: {available}")
+
+
 async def _resolve_domains(
     domains: set[str],
     resolver: _AsyncMxResolver,
@@ -156,7 +189,7 @@ async def _resolve_domains(
 async def validate_emails(
     emails: list[object],
     *,
-    domain_cache: dict[str, bool] | None = None,
+    domain_cache: dict[str, MxLookupResult] | None = None,
     concurrency: int = 250,
     resolver: _AsyncMxResolver | None = None,
 ) -> list[dict[str, object]]:
@@ -237,13 +270,11 @@ async def _process_csv_async(
     progress_callback: Callable[[ProcessingProgress], None] | None,
 ) -> VerificationSummary:
     header = pd.read_csv(input_path, nrows=0)
-    if email_column not in header.columns:
-        available = ", ".join(map(str, header.columns.tolist()))
-        raise ValueError(f"Column '{email_column}' was not found. Available columns: {available}")
+    resolved_email_column = _resolve_email_column(header.columns.tolist(), email_column)
 
     total_rows = count_csv_rows(input_path)
     total_chunks = max(1, math.ceil(total_rows / chunksize))
-    domain_cache: dict[str, bool] = {}
+    domain_cache: dict[str, MxLookupResult] = {}
     resolver = _AsyncMxResolver()
 
     output_working.parent.mkdir(parents=True, exist_ok=True)
@@ -261,16 +292,16 @@ async def _process_csv_async(
 
     iterator = pd.read_csv(
         input_path,
-        usecols=[email_column],
+        usecols=[resolved_email_column],
         chunksize=chunksize,
-        dtype={email_column: "string"},
+        dtype={resolved_email_column: "string"},
         keep_default_na=False,
         na_filter=False,
     )
 
     for chunk_index, chunk in enumerate(iterator, start=1):
         processed_chunks = chunk_index
-        emails = chunk[email_column].tolist()
+        emails = chunk[resolved_email_column].tolist()
         validation_rows = await validate_emails(
             emails,
             domain_cache=domain_cache,
@@ -312,7 +343,7 @@ async def _process_csv_async(
         output_working=str(output_working),
         output_invalid=str(output_invalid),
         output_unknown=str(output_unknown),
-        email_column=email_column,
+        email_column=resolved_email_column,
         total_rows=processed_rows,
         working_count=working_count,
         invalid_count=invalid_count,
